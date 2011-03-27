@@ -1,3 +1,5 @@
+Right now this script is still being optimized.
+
 This is a simple script to crop a PDF to a specific size, deleting the white space margins. I figured somebody would have already written this script, but I couldn't find it anywhere, so here it is.
 
 It relies on the ChunkyPNG library as well as ImageMagick's "convert" to do its preprocessing. The PDF cropping is done manually.
