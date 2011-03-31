@@ -55,7 +55,7 @@ def calculateBoundingBox(image)
     (0...image.height).each { |h|
       (0...image.width).each { |w|
         if luminance(image[w,h]) < BlackThreshold
-          bb[:top] = h.to_f / TempDPI
+          bb[:top] = h.to_f
           throw :done
         end
       }
@@ -67,7 +67,7 @@ def calculateBoundingBox(image)
     (0...image.height).to_a.reverse.each { |h|
       (0...image.width).each { |w|
         if luminance(image[w,h]) < BlackThreshold
-          bb[:bottom] = h.to_f / TempDPI
+          bb[:bottom] = h.to_f
           throw :done
         end
       }
@@ -79,7 +79,7 @@ def calculateBoundingBox(image)
     (0...image.width).each { |w|
       (0...image.height).each { |h|
         if luminance(image[w,h]) < BlackThreshold
-          bb[:left] = w.to_f / TempDPI
+          bb[:left] = w.to_f
           throw :done
         end
       }
@@ -91,7 +91,7 @@ def calculateBoundingBox(image)
     (0...image.width).to_a.reverse.each { |w|
       (0...image.height).each { |h|
         if luminance(image[w,h]) < BlackThreshold
-          bb[:right] = w.to_f / TempDPI
+          bb[:right] = w.to_f
           throw :done
         end
       }
@@ -101,7 +101,15 @@ def calculateBoundingBox(image)
   bb[:height] = bb[:bottom] - bb[:top]
   bb[:width] = bb[:right] - bb[:left]
 
-  return bb
+  if Debug
+    [bb[:top], bb[:bottom]].each { |h| (bb[:left].to_i..bb[:right].to_i).each { |w| image[w,h] = ChunkyPNG::Color('red') }}
+    [bb[:left], bb[:right]].each { |w| (bb[:top].to_i..bb[:bottom].to_i).each { |h| image[w,h] = ChunkyPNG::Color('red') }}
+  end    
+
+  bbInches = {}
+  bb.each { |k,v| bbInches[k] = v / TempDPI }
+
+  return bbInches
 end
 
 def calculateCenterOfMass(image)
@@ -148,7 +156,7 @@ end
 
 def cropPDFPages(bbs)
   inputPDFData = File.open(InputPDF).read
-  inputPDFData.gsub!(/MediaBox \[[0-9 ]+\]/) { 
+  inputPDFData.gsub!(/MediaBox \[[^\]]*\]/) { 
     bb = bbs.shift
     "MediaBox [#{bb[:left]} #{bb[:top]} #{bb[:right]} #{bb[:bottom]}] "
   }
@@ -161,7 +169,7 @@ def numberOfPages
 end
 
 n = numberOfPages
-puts n
+puts "Processing #{n} pages" if Debug
 bbs = []
 mediaBox = {}
 (1..n).each { |page|
@@ -178,19 +186,34 @@ mediaBox = {}
   puts mediaBox.inspect
 =end
 
-  boundingBox = calculateBoundingBox(tempPageImage)  
-  puts boundingBox.inspect
+  boundingBox = calculateBoundingBox(tempPageImage) 
+   
+  puts "Calculated boundingBox for page #{page}:  " + boundingBox.inspect if Debug
   
   verticalMargin = (FinalSize[:height] - boundingBox[:height]) / 2
   horizontalMargin = (FinalSize[:width] - boundingBox[:width]) / 2
 
-  mediaBox[:top] = (FinalSize[:height] - (boundingBox[:top] - verticalMargin)) * PDFInfo[:dpiHeight].to_f
-  mediaBox[:bottom] = (FinalSize[:height] - (boundingBox[:bottom] + verticalMargin)) * PDFInfo[:dpiHeight].to_f
-  mediaBox[:left] = (boundingBox[:left] - horizontalMargin) * PDFInfo[:dpiWidth].to_f
-  mediaBox[:right] = (boundingBox[:right] + horizontalMargin) * PDFInfo[:dpiWidth].to_f
+  mediaBox[:top] = (boundingBox[:top] - verticalMargin)# + (200.0/72.0)
+  mediaBox[:bottom] = (boundingBox[:bottom] + verticalMargin)# + (200.0/72.0)
+  mediaBox[:left] = (boundingBox[:left] - horizontalMargin)
+  mediaBox[:right] = (boundingBox[:right] + horizontalMargin)
+
+
+  mediaBox72dpi = {}
+  mediaBox.each { |k,v| mediaBox72dpi[k] = v * 72.0 }
+  mediaBoxTempdpi = {}
+  mediaBox.each { |k,v| mediaBoxTempdpi[k] = v * TempDPI }
+
+  if Debug
+    [mediaBoxTempdpi[:top], mediaBoxTempdpi[:bottom]].each { |h| (mediaBoxTempdpi[:left].to_i..mediaBoxTempdpi[:right].to_i).each { |w| tempPageImage[w,h] = ChunkyPNG::Color('blue') }}
+    [mediaBoxTempdpi[:left], mediaBoxTempdpi[:right]].each { |w| (mediaBoxTempdpi[:top].to_i..mediaBoxTempdpi[:bottom].to_i).each { |h| tempPageImage[w,h] = ChunkyPNG::Color('blue') }}
+    tempPageImage.save(tempPageName(page,"png"))
+  end
+
+  puts "Calculated mediaBox for page #{page}:  " + mediaBox72dpi.inspect if Debug
 
   bbs.push mediaBox
 
-#  `rm #{tempPageName(page,"png")}`
+  `rm #{tempPageName(page,"png")}` if ! Debug
 }
 cropPDFPages(bbs)
