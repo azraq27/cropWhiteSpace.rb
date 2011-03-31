@@ -11,6 +11,8 @@ OutputPDF = ARGV[1]
 
 TempDPI = 50
 
+Debug = true
+
 def getImageInfo(filename)
   info = {}
   `sips -g all #{filename}`.split("\n")[1..-1].each { |attr|
@@ -20,7 +22,7 @@ def getImageInfo(filename)
 
   info[:inchHeight] = info[:pixelHeight].to_f / info[:dpiHeight].to_f
   info[:inchWidth] = info[:pixelWidth].to_f / info[:dpiWidth].to_f
-  puts info.inspect
+  puts info.inspect if Debug
   return info
 end
 
@@ -31,18 +33,11 @@ def tempPageName(page,suffix)
 end
 
 def extractPDFPage(docName,page,outputName)
-#  `pdftk #{docName} cat #{page+1} #{outputName}`
   `gs -q -sDEVICE=pdfwrite -dNOPAUSE -dBATCH -dQUIET -dSAFER -dFirstPage=#{page} -dLastPage=#{page} -sOutputFile="#{outputName}" "#{docName}"`
 end
 
 def createTempPage(page)
-  extractPDFPage(InputPDF,page,tempPageName(page,"pdf"))
-  newWidth = PDFInfo[:inchHeight] * TempDPI
-  newHeight = PDFInfo[:inchWidth] * TempDPI
-  puts "sips -s format png -s dpiWidth #{TempDPI} -s dpiHeight #{TempDPI} --resampleHeight #{newHeight} #{InputPDF} --out #{tempPageName(page,"png")}"
-#  `rm #{tempPageName(page,"pdf")}`
-puts newWidth
-puts newHeight
+  `gs -q -sDEVICE=png16m -r#{TempDPI} -dNOPAUSE -dBATCH -dQUIET -dSAFER -dFirstPage=#{page} -dLastPage=#{page} -sOutputFile="#{tempPageName(page,"png")}" "#{InputPDF}"`
 end
 
 def luminance(value)
