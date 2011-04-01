@@ -164,8 +164,9 @@ def cropPDFPages(bbs)
 end
 
 def numberOfPages
-  m = `pdfinfo #{InputPDF}`.match(/^Pages:\s+([0-9]+)$/)
-  m ? m[1].to_i : nil
+#  m = `pdfinfo #{InputPDF}`.match(/^Pages:\s+([0-9]+)$/)
+#  m ? m[1].to_i : nil
+  File.open(InputPDF).read.scan(/\/Count ([0-9]+)/).sort[-1][0].to_i
 end
 
 n = numberOfPages
@@ -210,9 +211,9 @@ mediaBox = {}
     tempPageImage.save(tempPageName(page,"png"))
   end
 
-  puts "Calculated mediaBox for page #{page}:  " + mediaBox72dpi.inspect if Debug
+  puts "Calculated mediaBox for page #{page}:  " + mediaBoxTempdpi.inspect if Debug
 
-  bbs.push mediaBox
+  bbs.push mediaBox72dpi
 
   `rm #{tempPageName(page,"png")}` if ! Debug
 }
